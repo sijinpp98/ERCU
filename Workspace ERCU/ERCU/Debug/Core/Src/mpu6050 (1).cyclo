@@ -1,0 +1,2 @@
+../Core/Src/mpu6050 (1).c:4:9:MPU6050_Init	4
+../Core/Src/mpu6050 (1).c:16:9:MPU6050_ReadTilt	2

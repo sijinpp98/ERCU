@@ -1,0 +1,28 @@
+#include "mpu6050.h"
+#include <math.h>
+
+uint8_t MPU6050_Init(void) {
+    uint8_t check;
+    if (HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x75, 1, &check, 1, 100) != HAL_OK)
+        return 0; //  read failed -> not connected
+    if (check != 0x68) return 0;
+
+    uint8_t data = 0x00; // wake up from sleep mode
+    if (HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x6B, 1, &data, 1, 100) != HAL_OK)
+        return 0;
+    return 1;
+}
+
+uint8_t MPU6050_ReadTilt(float *tilt_deg) {
+    uint8_t buf[6];
+    if (HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x3B, 1, buf, 6, 100) != HAL_OK)
+        return 0; // communication failure
+
+    int16_t ax = (int16_t)(buf[0] << 8 | buf[1]);
+    int16_t ay = (int16_t)(buf[2] << 8 | buf[3]);
+    int16_t az = (int16_t)(buf[4] << 8 | buf[5]);
+
+    float ax_g = ax / 16384.0f, ay_g = ay / 16384.0f, az_g = az / 16384.0f;
+    *tilt_deg = atan2f(sqrtf(ax_g * ax_g + ay_g * ay_g), az_g) * 180.0f / (float)M_PI;
+    return 1;
+}

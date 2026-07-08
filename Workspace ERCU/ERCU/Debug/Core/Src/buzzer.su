@@ -1,0 +1,4 @@
+../Core/Src/buzzer.c:5:6:Buzzer_On	8	static
+../Core/Src/buzzer.c:6:6:Buzzer_Off	8	static
+../Core/Src/buzzer.c:10:6:Buzzer_ShortBeep	8	static
+../Core/Src/buzzer.c:19:6:Buzzer_SlowIntermittent	8	static

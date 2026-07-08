@@ -1,0 +1,2 @@
+../Core/Src/mpu6050 (1).c:4:9:MPU6050_Init	32	static
+../Core/Src/mpu6050 (1).c:16:9:MPU6050_ReadTilt	64	static

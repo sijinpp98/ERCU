@@ -1,0 +1,7 @@
+../Core/Src/hcsr04.c:10:6:HCSR04_Init	8	static
+../Core/Src/hcsr04.c:29:13:delay_us	24	static
+../Core/Src/hcsr04.c:35:6:HCSR04_Trigger	8	static
+../Core/Src/hcsr04.c:43:6:HAL_TIM_IC_CaptureCallback	24	static
+../Core/Src/hcsr04.c:66:6:HCSR04_CheckTimeout	8	static
+../Core/Src/hcsr04.c:72:7:HCSR04_GetDistance	4	static
+../Core/Src/hcsr04.c:73:9:HCSR04_IsHealthy	4	static

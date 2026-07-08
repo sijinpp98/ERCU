@@ -1,0 +1,79 @@
+#include "dht11.h"
+
+static void DHT11_SetPinOutput(void) {
+    GPIO_InitTypeDef gpio = {0};
+    gpio.Pin = DHT11_PIN;
+    gpio.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio.Pull = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(DHT11_PORT, &gpio);
+}
+
+static void DHT11_SetPinInput(void) {
+    GPIO_InitTypeDef gpio = {0};
+    gpio.Pin = DHT11_PIN;
+    gpio.Mode = GPIO_MODE_INPUT;
+    gpio.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(DHT11_PORT, &gpio);
+}
+
+// Requires the same DWT cycle counter used by hcsr04.c
+static void delay_us(uint32_t us) {
+    uint32_t start = DWT->CYCCNT;
+    uint32_t ticks = us * (SystemCoreClock / 1000000);
+    while ((DWT->CYCCNT - start) < ticks);
+}
+
+void DHT11_Init(void) {
+    DHT11_SetPinOutput();
+    HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, GPIO_PIN_SET); // idle high
+}
+
+// Waits for the pin to reach `level`, up to timeout_us. Returns elapsed us, or 0xFFFF on timeout.
+static uint32_t wait_for_level(GPIO_PinState level, uint32_t timeout_us) {
+    uint32_t start = DWT->CYCCNT;
+    uint32_t ticks = timeout_us * (SystemCoreClock / 1000000);
+    while (HAL_GPIO_ReadPin(DHT11_PORT, DHT11_PIN) != level) {
+        if ((DWT->CYCCNT - start) > ticks) return 0xFFFF;
+    }
+    return (DWT->CYCCNT - start) / (SystemCoreClock / 1000000);
+}
+
+uint8_t DHT11_Read(DHT11_Data *out) {
+    uint8_t data[5] = {0, 0, 0, 0, 0};
+
+    // 1. Start signal: pull low 18ms, then release
+    DHT11_SetPinOutput();
+    HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, GPIO_PIN_RESET);
+    HAL_Delay(18);
+    HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, GPIO_PIN_SET);
+    delay_us(30);
+    DHT11_SetPinInput();
+
+    // 2. Sensor response: low ~80us, then high ~80us
+    if (wait_for_level(GPIO_PIN_RESET, 100) == 0xFFFF) { out->valid = 0; return 0; }
+    if (wait_for_level(GPIO_PIN_SET, 100) == 0xFFFF)   { out->valid = 0; return 0; }
+    if (wait_for_level(GPIO_PIN_RESET, 100) == 0xFFFF) { out->valid = 0; return 0; }
+
+    // 3. Read 40 bits (16 humidity + 16 temperature + 8 checksum)
+    for (int i = 0; i < 40; i++) {
+        if (wait_for_level(GPIO_PIN_SET, 100) == 0xFFFF) { out->valid = 0; return 0; }
+        uint32_t high_us = wait_for_level(GPIO_PIN_RESET, 100);
+        if (high_us == 0xFFFF) { out->valid = 0; return 0; }
+        // ~26-28us high = bit 0, ~70us high = bit 1
+        data[i / 8] <<= 1;
+        if (high_us > 40) data[i / 8] |= 1;
+    }
+
+    DHT11_SetPinOutput();
+    HAL_GPIO_WritePin(DHT11_PORT, DHT11_PIN, GPIO_PIN_SET); // release, idle high
+
+    // 4. Checksum
+    uint8_t checksum = data[0] + data[1] + data[2] + data[3];
+    if (checksum != data[4]) { out->valid = 0; return 0; }
+
+    out->humidity = (float)data[0];
+    out->temperature = (float)data[2];
+    out->valid = 1;
+    return 1;
+}
